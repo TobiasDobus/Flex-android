@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
@@ -17,12 +18,27 @@ import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
+import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
+import com.google.api.client.googleapis.extensions.android.gms.auth.GooglePlayServicesAvailabilityIOException;
+import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.util.DateTime;
 import com.google.api.client.util.ExponentialBackOff;
+import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.CalendarScopes;
+import com.google.api.services.calendar.model.Event;
+import com.google.api.services.calendar.model.Events;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -38,6 +54,8 @@ public class MainActivity extends AppCompatActivity
     Button googleApiButton;
     @BindView(R.id.main_error_text)
     TextView mOutputText;
+    @BindView(R.id.total_flex)
+    TextView totalFlexText;
 
     static final int REQUEST_ACCOUNT_PICKER = 1000;
     static final int REQUEST_AUTHORIZATION = 1001;
@@ -58,7 +76,17 @@ public class MainActivity extends AppCompatActivity
         mCredential = GoogleAccountCredential.usingOAuth2(
                 getApplicationContext(), Arrays.asList(SCOPES))
                 .setBackOff(new ExponentialBackOff());
+        String accountName = getSharedPreferences(MainActivity.PREFERENCES, Context.MODE_PRIVATE)
+                .getString(MainActivity.PREF_ACCOUNT_NAME, null);
+        if (accountName != null) {
+            mCredential.setSelectedAccountName(accountName);
+        }
+    }
 
+    @Override
+    protected void onResume() {
+        new MakeRequestTask(mCredential).execute();
+        super.onResume();
     }
 
     @OnClick({R.id.main_see_time, R.id.main_add_flex})
@@ -270,9 +298,118 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+    private long getEventDuration(Event event) {
+        DateTime startTime = event.getStart().getDateTime();
+        DateTime endTime = event.getEnd().getDateTime();
+        return endTime.getValue() - startTime.getValue();
+    }
+
     /**
      * An asynchronous task that handles the Google Calendar API call.
      * Placing the API calls in their own task ensures the UI stays responsive.
      */
+
+    private class MakeRequestTask extends AsyncTask<Void, Void, Long> {
+        private Calendar mService = null;
+        private Exception mLastError = null;
+        private ArrayList<Event> eventArrayList;
+
+        MakeRequestTask(GoogleAccountCredential credential) {
+            HttpTransport transport = AndroidHttp.newCompatibleTransport();
+            JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
+            mService = new Calendar.Builder(
+                    transport, jsonFactory, credential)
+                    .setApplicationName("Google Calendar API Android Quickstart")
+                    .build();
+        }
+
+        /**
+         * Background task to call Google Calendar API.
+         *
+         * @param params no parameters needed for this task.
+         */
+        @Override
+        protected Long doInBackground(Void... params) {
+            try {
+                return getDataFromApi();
+            } catch (Exception e) {
+                mLastError = e;
+                cancel(true);
+                return null;
+            }
+        }
+
+        /**
+         * Fetch a list of the next 10 events from the primary calendar.
+         *
+         * @return List of Strings describing returned events.
+         * @throws IOException
+         */
+        private Long getDataFromApi() throws IOException {
+            DateTime endDateTime = new DateTime(new Date(System.currentTimeMillis()));
+            List<String> eventStrings = new ArrayList<String>();
+            Events events = mService.events().list("primary")
+                    .setMaxResults(100)
+                    .setTimeMax(endDateTime)
+                    .setSingleEvents(true)
+                    .execute();
+            long time = 0;
+
+            for (Event event : events.getItems()) {
+                DateTime start = event.getStart().getDateTime();
+                if (start == null) {
+                    // All-day events don't have start times, so just use
+                    // the start date.
+                    start = event.getStart().getDate();
+                }
+                if (event.getSummary().toLowerCase().equals("flex in") || event.getSummary().toLowerCase().equals("flex ut")) {
+                    long eventDurationLong = getEventDuration(event);
+                    if (event.getSummary().toLowerCase().equals("flex in")) {
+                        time += eventDurationLong;
+                    } else {
+                        time -= eventDurationLong;
+                    }
+                }
+            }
+            return time;
+        }
+
+
+        @Override
+        protected void onPreExecute() {
+            mOutputText.setText("");
+        }
+
+        @Override
+        protected void onPostExecute(final Long time) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    totalFlexText.setText(String.format("%s (%s)", "Tid: ", String.format(Locale.ENGLISH, "%d min",
+                            TimeUnit.MILLISECONDS.toMinutes(time))));
+                }
+            });
+        }
+
+        @Override
+        protected void onCancelled() {
+            if (mLastError != null) {
+                if (mLastError instanceof GooglePlayServicesAvailabilityIOException) {
+                    showGooglePlayServicesAvailabilityErrorDialog(
+                            ((GooglePlayServicesAvailabilityIOException) mLastError)
+                                    .getConnectionStatusCode());
+                } else if (mLastError instanceof UserRecoverableAuthIOException) {
+                    startActivityForResult(
+                            ((UserRecoverableAuthIOException) mLastError).getIntent(),
+                            MainActivity.REQUEST_AUTHORIZATION);
+                } else {
+                    mOutputText.setText("The following error occurred:\n"
+                            + mLastError.getMessage());
+                }
+            } else {
+                mOutputText.setText("Request cancelled.");
+            }
+        }
+    }
 
 }

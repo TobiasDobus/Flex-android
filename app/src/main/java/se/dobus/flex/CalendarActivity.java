@@ -7,6 +7,8 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
@@ -40,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
+import se.dobus.flex.adapters.FlexAdapter;
 import se.dobus.flex.models.DatePickerFragment;
 
 public class CalendarActivity extends AppCompatActivity
@@ -61,10 +64,15 @@ public class CalendarActivity extends AppCompatActivity
     TextView calendarDataText;
     @BindView(R.id.get_calendar)
     Button getCalendar;
+    @BindView(R.id.flex_in_recycler_view)
+    RecyclerView inRecyclerView;
+    @BindView(R.id.flex_out_recycler_view)
+    RecyclerView outRecyclerView;
 
-    public int[] startDateInts = {0, 0, 0};
-    public int[] endDateInts = {0, 0, 0};
     private Date startDate, endDate;
+
+    private FlexAdapter mInAdapter, mOutAdapter;
+    private ArrayList<Event> eventArrayList;
 
     boolean isStart;
 
@@ -78,6 +86,8 @@ public class CalendarActivity extends AppCompatActivity
                 getApplicationContext(), Arrays.asList(MainActivity.SCOPES))
                 .setBackOff(new ExponentialBackOff());
 
+        startDate = new Date(System.currentTimeMillis());
+        endDate = new Date(System.currentTimeMillis());
 
         String accountName = getSharedPreferences(MainActivity.PREFERENCES, Context.MODE_PRIVATE)
                 .getString(MainActivity.PREF_ACCOUNT_NAME, null);
@@ -85,6 +95,8 @@ public class CalendarActivity extends AppCompatActivity
             mCredential.setSelectedAccountName(accountName);
         }
     }
+
+
 
 
     void showGooglePlayServicesAvailabilityErrorDialog(
@@ -97,23 +109,23 @@ public class CalendarActivity extends AppCompatActivity
         dialog.show();
     }
 
-    private long getEventDuration(Event event) {
-        DateTime startTime = event.getStart().getDateTime();
-        DateTime endTime = event.getEnd().getDateTime();
-        return endTime.getValue() - startTime.getValue();
-    }
-
     @OnClick({R.id.start_date, R.id.end_date, R.id.get_calendar})
     public void onViewClicked(View view) {
         switch (view.getId()) {
             case R.id.start_date:
                 isStart = true;
                 DialogFragment newStartFragment = new DatePickerFragment();
+                Bundle bundleStart = new Bundle();
+                bundleStart.putLong("current_date", startDate.getTime());
+                newStartFragment.setArguments(bundleStart);
                 newStartFragment.show(getFragmentManager(), "CalendarDatePicker");
                 break;
             case R.id.end_date:
                 isStart = false;
                 DialogFragment newEndFragment = new DatePickerFragment();
+                Bundle bundleEnd = new Bundle();
+                bundleEnd.putLong("current_date", endDate.getTime());
+                newEndFragment.setArguments(bundleEnd);
                 newEndFragment.show(getFragmentManager(), "CalendarDatePicker");
                 break;
             case R.id.get_calendar:
@@ -132,9 +144,29 @@ public class CalendarActivity extends AppCompatActivity
         }
     }
 
-    private class MakeRequestTask extends AsyncTask<Void, Void, List<String>> {
+    public void setEvents(ArrayList<Event> events){
+        ArrayList<Event> inEvents = new ArrayList<>();
+        ArrayList<Event> outEvents = new ArrayList<>();
+
+        for (Event event : events) {
+            if (event.getSummary().toLowerCase().equals("flex in")){
+                inEvents.add(event);
+            }else if (event.getSummary().toLowerCase().equals("flex ut")){
+                outEvents.add(event);
+            }
+        }
+        mInAdapter = new FlexAdapter(this, inEvents);
+        mOutAdapter = new FlexAdapter(this, outEvents);
+        inRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        outRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        inRecyclerView.setAdapter(mInAdapter);
+        outRecyclerView.setAdapter(mOutAdapter);
+    }
+
+    private class MakeRequestTask extends AsyncTask<Void, Void, Void> {
         private Calendar mService = null;
         private Exception mLastError = null;
+        private ArrayList<Event> eventArrayList;
 
         MakeRequestTask(GoogleAccountCredential credential) {
             HttpTransport transport = AndroidHttp.newCompatibleTransport();
@@ -151,7 +183,7 @@ public class CalendarActivity extends AppCompatActivity
          * @param params no parameters needed for this task.
          */
         @Override
-        protected List<String> doInBackground(Void... params) {
+        protected Void doInBackground(Void... params) {
             try {
                 return getDataFromApi();
             } catch (Exception e) {
@@ -167,7 +199,7 @@ public class CalendarActivity extends AppCompatActivity
          * @return List of Strings describing returned events.
          * @throws IOException
          */
-        private List<String> getDataFromApi() throws IOException {
+        private Void getDataFromApi() throws IOException {
             DateTime startDateTime = new DateTime(startDate.getTime());
             DateTime endDateTime = new DateTime(endDate.getTime());
             List<String> eventStrings = new ArrayList<String>();
@@ -178,8 +210,8 @@ public class CalendarActivity extends AppCompatActivity
                     .setOrderBy("startTime")
                     .setSingleEvents(true)
                     .execute();
-            List<Event> items = events.getItems();
-            long time = 0;
+            eventArrayList = new ArrayList<>(events.getItems());
+            /*long time = 0;
 
             for (Event event : items) {
                 DateTime start = event.getStart().getDateTime();
@@ -204,7 +236,8 @@ public class CalendarActivity extends AppCompatActivity
             eventStrings.add(
                     String.format("%s (%s)", "Tid: ", String.format(Locale.ENGLISH, "%d min",
                             TimeUnit.MILLISECONDS.toMinutes(time))));
-            return eventStrings;
+            return eventStrings;*/
+            return null;
         }
 
 
@@ -214,13 +247,14 @@ public class CalendarActivity extends AppCompatActivity
         }
 
         @Override
-        protected void onPostExecute(List<String> output) {
-            if (output == null || output.size() == 0) {
-                mOutputText.setText("No results returned.");
-            } else {
-                output.add(0, "Data retrieved using the Google Calendar API:");
-                calendarDataText.setText(TextUtils.join("\n", output));
-            }
+        protected void onPostExecute(Void aVoid) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    setEvents(eventArrayList);
+                }
+            });
+            super.onPostExecute(aVoid);
         }
 
         @Override

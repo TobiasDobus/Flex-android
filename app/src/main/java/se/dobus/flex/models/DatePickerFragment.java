@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.widget.DatePicker;
 
 import java.util.Calendar;
+import java.util.Date;
 
 import se.dobus.flex.AddFlexActivity;
 import se.dobus.flex.CalendarActivity;
@@ -21,15 +22,21 @@ public class DatePickerFragment extends DialogFragment{
     public Dialog onCreateDialog(Bundle savedInstanceState) {
         // Use the current date as the default date in the picker
         final Calendar c = Calendar.getInstance();
+        System.out.println(this.getTag());
+        Bundle bundle = getArguments();
+        c.setTime(new Date(bundle.getLong("current_date")));
         int year = c.get(Calendar.YEAR);
         int month = c.get(Calendar.MONTH);
         int day = c.get(Calendar.DAY_OF_MONTH);
-        System.out.println(this.getTag());
         switch (this.getTag()){
             case "AddFlexDatePicker":
-                return new DatePickerDialog(getActivity(), (AddFlexActivity)getActivity(), year, month, day);
+                DatePickerDialog dialog = new DatePickerDialog(getActivity(), (AddFlexActivity)getActivity(), year, month, day);
+                dialog.getDatePicker().setMaxDate(System.currentTimeMillis());
+                return dialog;
             case "CalendarDatePicker":
-                return new DatePickerDialog(getActivity(), (CalendarActivity)getActivity(), year, month, day);
+                DatePickerDialog dialog2 = new DatePickerDialog(getActivity(), (CalendarActivity)getActivity(), year, month, day);
+                dialog2.getDatePicker().setMaxDate(System.currentTimeMillis());
+                return dialog2;
         }
 
         // Create a new instance of DatePickerDialog and return it

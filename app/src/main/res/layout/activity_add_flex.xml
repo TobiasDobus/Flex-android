@@ -28,13 +28,49 @@
             android:layout_marginTop="15dp"
             style="@android:style/Widget.DeviceDefault.Light.Spinner"/>
 
-        <EditText
-            android:id="@+id/duration"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="15dp"
-            android:hint="Duration in hours"
-            android:inputType="numberDecimal"/>
+            android:orientation="horizontal"
+            android:layout_marginBottom="15dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginEnd="25dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Hours"
+                    android:textSize="16sp"/>
+
+                <Spinner
+                    android:id="@+id/duration_hours"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Minutes"
+                    android:textSize="16sp"/>
+
+                <Spinner
+                    android:id="@+id/duration_minutes"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+            </LinearLayout>
+
+        </LinearLayout>
+
 
         <Spinner
             android:id="@+id/in_or_out"

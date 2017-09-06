@@ -1,18 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="se.dobus.flex.MainActivity">
+    tools:context="se.dobus.flex.MainActivity"
+    android:gravity="center"
+    android:orientation="vertical">
 
     <TextView
+        android:id="@+id/main_error_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <Button
+        android:id="@+id/main_see_time"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:text="See time" />
+    <Button
+        android:id="@+id/main_add_flex"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Add flex" />
 
-</android.support.constraint.ConstraintLayout>
+</LinearLayout>

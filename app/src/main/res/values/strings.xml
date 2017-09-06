@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">Flex</string>
+
+    <string-array name="planets_array">
+        <item>Flex in</item>
+        <item>Flex ut</item>
+    </string-array>
 </resources>

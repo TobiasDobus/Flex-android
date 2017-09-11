@@ -177,9 +177,20 @@ public class AddFlexActivity extends AppCompatActivity
             }
             System.out.printf("Event created: %s\n", event.getHtmlLink());
             if (event.getHangoutLink()!=null) {
-                Toast.makeText(AddFlexActivity.this, "Flex inlagd!", Toast.LENGTH_LONG).show();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(AddFlexActivity.this, "Flex inlagd!", Toast.LENGTH_LONG).show();
+                        finish();
+                    }
+                });
             }else{
-                Toast.makeText(AddFlexActivity.this, "Flex inte inlagd...", Toast.LENGTH_LONG).show();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(AddFlexActivity.this, "Flex inte inlagd...", Toast.LENGTH_LONG).show();
+                    }
+                });
             }
             return null;
         }
